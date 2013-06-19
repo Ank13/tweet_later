@@ -2,8 +2,18 @@ get '/' do
   erb :index
 end
 
-get '/sign_in' do
+post '/tweet' do
+  delay = params[:delay].to_i
+  job_id = current_user.tweet(params[:tweet_text], delay)
+  if request.xhr?
+    return job_id
+  else 
+    redirect '/'
+  end
+end
 
+get '/sign_in' do
+  session.clear
   # the `request_token` method is defined in `app/helpers/oauth.rb`
   redirect request_token.authorize_url
 end
@@ -13,19 +23,25 @@ get '/sign_out' do
   redirect '/'
 end
 
-get '/auth' do
-  # the `request_token` method is defined in `app/helpers/oauth.rb`
-  @access_token = request_token.get_access_token(:oauth_verifier => params[:oauth_verifier])
-  # our request token is only valid until we use it to get an access token, so let's delete it from our session
-  session.delete(:request_token)
+get '/status/:job_id' do
+  content_type :json
+  { status: job_is_complete(params[:job_id])}.to_json
+end
 
-  screen_name = @access_token.params[:screen_name]
-  twitter_user_id = @access_token.params[:user_id]
-  oauth_token = @access_token.params[:oauth_token]
-  oauth_secret = @access_token.params[:oauth_token_secret]
-  @user = User.create(:screen_name => screen_name, :twitter_user_id => twitter_user_id,
-                      :oauth_token => oauth_token, :oauth_secret => oauth_secret )
-  # at this point in the code is where you'll need to create your user account and store the access token
-  puts @user.inspect
+
+get '/auth' do
+  @access_token = request_token.get_access_token(
+    :oauth_verifier => params[:oauth_verifier] )
+
+  session.delete(:request_token)
+  
+  @user = User.find_or_create_by_twitter_user_id(
+    :screen_name => @access_token.params[:screen_name], 
+    :twitter_user_id => @access_token.params[:user_id],
+    :oauth_token => @access_token.params[:oauth_token], 
+    :oauth_secret => @access_token.params[:oauth_token_secret] )
+  
+  session[:current_user] = @user.id
+
   erb :index
 end

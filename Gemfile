@@ -20,9 +20,9 @@ gem 'twitter'
 
 gem 'sidekiq'
 gem 'redis'
+gem 'rspec'
 
 group :development, :test do
   gem 'shotgun'
   gem 'faker'
-  gem 'rspec'
 end
